@@ -1,0 +1,358 @@
+
+<!-- public/index.html -->
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Cloud Linux Desktop</title>
+
+  <!-- Libraries -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4/css/xterm.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --taskbar-bg: rgba(20, 20, 20, 0.85);
+      --window-bg: #2b2b2b;
+      --window-header: #383838;
+      --accent: #e95420; /* Ubuntu Orange */
+      --text: #f0f0f0;
+      --border: rgba(255,255,255,0.1);
+      --shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    * { box-sizing: border-box; user-select: none; }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      font-family: 'Ubuntu', sans-serif;
+      background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop') no-repeat center center fixed;
+      background-size: cover;
+      color: var(--text);
+    }
+
+    /* Desktop Area */
+    #desktop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 48px; /* Taskbar height */
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 20px;
+    }
+
+    /* Desktop Icons */
+    .desktop-icon {
+      width: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      transition: transform 0.1s;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 10px 5px;
+    }
+    .desktop-icon:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .desktop-icon:active { transform: scale(0.95); }
+    .desktop-icon i {
+      font-size: 32px;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+    }
+    .desktop-icon span {
+      font-size: 13px;
+      text-align: center;
+      word-wrap: break-word;
+      line-height: 1.2;
+    }
+    .desktop-icon.term i { color: #d0d0d0; }
+    .desktop-icon.files i { color: #5e9eff; }
+    .desktop-icon.monitor i { color: #4cd964; }
+
+    /* Taskbar */
+    #taskbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 48px;
+      background: var(--taskbar-bg);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      z-index: 9999;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .start-btn {
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-right: 12px;
+      transition: background 0.2s;
+    }
+    .start-btn:hover { background: rgba(255,255,255,0.2); }
+    
+    .task-list {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+    }
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 36px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      max-width: 200px;
+    }
+    .task-item:hover { background: rgba(255,255,255,0.1); }
+    .task-item.active {
+      background: rgba(255,255,255,0.15);
+      border-bottom-color: var(--accent);
+    }
+    .task-item i { font-size: 14px; opacity: 0.8; }
+    .task-item span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .system-tray {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    /* Windows */
+    .window {
+      position: absolute;
+      background: var(--window-bg);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #000;
+      animation: openWindow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes openWindow {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    .window.active {
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+      z-index: 100;
+    }
+
+    .title-bar {
+      height: 32px;
+      background: var(--window-header);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      cursor: default;
+    }
+    .title-drag-area {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+      padding-left: 8px;
+    }
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .win-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .win-btn.close { background: #ff5f56; }
+    .win-btn.min { background: #ffbd2e; }
+    .win-btn.max { background: #27c93f; }
+
+    .window-content {
+      flex: 1;
+      position: relative;
+      background: #1e1e1e;
+      overflow: hidden;
+    }
+
+    /* App Specific Styles */
+    .terminal-container {
+      width: 100%;
+      height: 100%;
+      padding: 2px 0 0 4px; /* Tiny offset for xterm */
+      background: #000;
+    }
+    
+    /* File Manager */
+    .fm-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      color: #ddd;
+    }
+    .fm-toolbar {
+      padding: 8px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      gap: 8px;
+      background: #252525;
+    }
+    .fm-path {
+      flex: 1;
+      background: #111;
+      border: 1px solid #333;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .fm-grid {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+    .fm-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    .fm-item:hover { background: rgba(255,255,255,0.05); }
+    .fm-item i { font-size: 32px; margin-bottom: 6px; }
+    .fm-item.dir i { color: #e9ba20; }
+    .fm-item.file i { color: #aaa; }
+    .fm-item span { font-size: 12px; text-align: center; word-break: break-all; }
+
+    /* System Monitor */
+    .sys-layout {
+      padding: 20px;
+      color: #eee;
+      font-family: monospace;
+    }
+    .sys-row { margin-bottom: 12px; }
+    .sys-label { color: #888; font-size: 12px; margin-bottom: 4px; }
+    .sys-bar-bg { height: 16px; background: #333; border-radius: 4px; overflow: hidden; }
+    .sys-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+
+    /* Resize Handle */
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 15px;
+      height: 15px;
+      cursor: nwse-resize;
+      z-index: 10;
+    }
+
+    #loading-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; z-index: 10000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.5s;
+    }
+    .spinner {
+        width: 40px; height: 40px; border: 4px solid #333; border-top-color: var(--accent);
+        border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <div style="font-family: 'Ubuntu'; color: #888;">Starting Cloud Desktop...</div>
+  </div>
+
+  <!-- Desktop Icons -->
+  <div id="desktop">
+    <div class="desktop-icon term" ondblclick="app.openTerminal()">
+      <i class="fas fa-terminal"></i>
+      <span>Terminal</span>
+    </div>
+    <div class="desktop-icon files" ondblclick="app.openFileManager()">
+      <i class="fas fa-folder-open"></i>
+      <span>Files</span>
+    </div>
+    <div class="desktop-icon monitor" ondblclick="app.openSystemMonitor()">
+      <i class="fas fa-microchip"></i>
+      <span>System</span>
+    </div>
+  </div>
+
+  <!-- Windows Area (Where windows are appended) -->
+  <div id="windows-container"></div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <div class="start-btn">
+      <i class="fas fa-th-large" style="color: #fff;"></i>
+    </div>
+    <div class="task-list" id="task-list">
+      <!-- Task Items injected here -->
+    </div>
+    <div class="system-tray">
+      <div id="clock">12:00</div>
+      <i class="fas fa-wifi"></i>
+      <div id="status-indicator" style="width: 8px; height: 8px; background: red; border-radius: 50%;"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm@4/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.4.0/lib/xterm-addon-web-links.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
