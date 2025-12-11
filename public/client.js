@@ -61,10 +61,9 @@ class WindowManager {
       item.innerHTML = `<i class="${win.icon}"></i><span>${win.title}</span>`;
       item.onclick = () => {
         if (this.activeWindowId === win.id) {
-           // Toggle minimize (simple implementation: just focus for now)
-        } else {
-          this.focusWindow(win.id);
+           // Toggle minimize could go here
         }
+        this.focusWindow(win.id);
       };
       this.taskList.appendChild(item);
     });
@@ -156,12 +155,14 @@ class AppWindow {
     // Global Mouse Move/Up
     window.addEventListener('mousemove', (e) => {
       if (isDragging) {
+        e.preventDefault();
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
         this.element.style.left = `${initialLeft + dx}px`;
         this.element.style.top = `${initialTop + dy}px`;
       }
       if (isResizing) {
+        e.preventDefault();
         const dx = e.clientX - resizeStartX;
         const dy = e.clientY - resizeStartY;
         const newW = Math.max(this.minWidth, initialWidth + dx);
@@ -204,8 +205,11 @@ setInterval(() => {
 // Status Indicator
 socket.on('connect', () => {
   document.getElementById('status-indicator').style.background = '#4cd964'; // Green
-  document.getElementById('loading-screen').style.opacity = '0';
-  setTimeout(() => document.getElementById('loading-screen').remove(), 500);
+  const loading = document.getElementById('loading-screen');
+  if (loading) {
+      loading.style.opacity = '0';
+      setTimeout(() => loading.remove(), 500);
+  }
 });
 socket.on('disconnect', () => {
   document.getElementById('status-indicator').style.background = '#ff5f56'; // Red
@@ -434,10 +438,7 @@ socket.on('sessions-list', (list) => {
     // If sessions exist, open windows for them
     if (list.length > 0) {
         list.forEach(s => {
-            // Check if we already have a window for this (not implemented strictly here, assuming page refresh)
             App.createTerminalWindow(s.id, s.name);
         });
-    } else {
-        // No sessions, user can create one via desktop icon
     }
 });
