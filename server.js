@@ -5,7 +5,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const pty = require('node-pty');
 const os = require('os');
-const fs = require('fs').promises; // Use fs promises for File Manager
+const fs = require('fs').promises; 
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
@@ -16,7 +16,6 @@ const io = new Server(server, {
   pingInterval: 25000,
   pingTimeout: 60000,
   maxHttpBufferSize: 1e6,
-  perMessageDeflate: false,
   cors: { origin: '*' }
 });
 
@@ -136,7 +135,8 @@ function createSession() {
 // Initial session
 if (sessions.size === 0) createSession();
 
-app.use(express.static('public'));
+// Serve static files correctly
+app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
   console.log('Client connected', socket.id);
@@ -183,7 +183,7 @@ io.on('connection', (socket) => {
         const result = items.map(item => ({
             name: item.name,
             isDirectory: item.isDirectory(),
-            size: item.isDirectory() ? 0 : 0, // Simplified
+            // size logic can be added here if needed
         }));
         // Sort: Directories first
         result.sort((a, b) => (a.isDirectory === b.isDirectory) ? 0 : a.isDirectory ? -1 : 1);
